@@ -58,8 +58,8 @@ Here is how you handle the workflow manually:
 **JavaScript**  
 <code>
 window.addEventListener('online', () \=\> {  
-	// Trigger the upload function to GUARDA\!  
-	syncDataToGuarda();  
+// Trigger the upload function to GUARDA\!  
+syncDataToGuarda();  
 });
 </code>
 
@@ -209,7 +209,9 @@ This blends seamlessly with the PWA \+ WebSockets project you just designed. You
 4. **The Live Stream:** As the ESP32 finds devices, it doesn't wait for the scan to finish. It immediately streams the discoveries back to your PWA over the WebSocket:
 
 **JSON**  
+<code>
 {"ip": "192.168.1.15", "mac": "b8:27:eb:xx:xx:xx", "vendor": "Raspberry Pi Foundation", "open\_ports": \[22, 80\]}
+</code>
 
 5. **The Visual Layer:** Your PWA receives these packets and builds a clean, beautiful, dynamic UI grid showing your custom device names, their live statuses, and links to jump straight into their open web portals.
 
