@@ -56,10 +56,12 @@ Here is how you handle the workflow manually:
 2. The PWA detects that it can now see the internet/local network again using the browser's native network listener:
 
 **JavaScript**  
+<code>
 window.addEventListener('online', () \=\> {  
-    // Trigger the upload function to GUARDA\!  
-    syncDataToGuarda();  
+	// Trigger the upload function to GUARDA\!  
+	syncDataToGuarda();  
 });
+</code>
 
 3. The syncDataToGuarda() function reads all the compiled records out of localStorage, sends them via a standard POST request to your PHP web service on GUARDA, and clears the local storage once the server returns a 200 OK confirmation.
 
@@ -68,6 +70,7 @@ window.addEventListener('online', () \=\> {
 Instead of parsing a messy text box, your PWA can save each event as a clean JSON object in a local array. When it's time to sync to your PHP script, the payload it sends to GUARDA will look beautifully structured:
 
 **JSON**  
+<code>
 \[  
   {  
     "timestamp": "2026-05-20T21:15:00Z",  
@@ -79,6 +82,7 @@ Instead of parsing a messy text box, your PWA can save each event as a clean JSO
     \]  
   }  
 \]
+</code>
 
 Your PHP web service can then easily decode this array using json\_decode($\_POST\['data'\]) and append it straight to a database or a structured master log file on GUARDA.
 
