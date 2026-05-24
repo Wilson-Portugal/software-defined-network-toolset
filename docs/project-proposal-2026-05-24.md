@@ -58,8 +58,8 @@ Here is how you handle the workflow manually:
 **JavaScript**  
 <code>
 window.addEventListener('online', () \=\> {  
-// Trigger the upload function to GUARDA\!  
-syncDataToGuarda();  
+    // Trigger the upload function to GUARDA\!  
+    syncDataToGuarda();  
 });
 </code>
 
@@ -72,15 +72,15 @@ Instead of parsing a messy text box, your PWA can save each event as a clean JSO
 **JSON**  
 <code>
 \[  
-  {  
-    "timestamp": "2026-05-20T21:15:00Z",  
-    "lat": 45.9636,  
-    "lon": \-66.6431,  
-    "networks": \[  
-      {"ssid": "HomeNet", "bssid": "aa:bb:cc:dd:ee:ff", "rssi": \-65},  
-      {"ssid": "CoffeeShop", "bssid": "11:22:33:44:55:66", "rssi": \-82}  
-    \]  
-  }  
+    {  
+        "timestamp": "2026-05-20T21:15:00Z",  
+        "lat": 45.9636,  
+        "lon": \-66.6431,  
+        "networks": \[  
+            {"ssid": "HomeNet", "bssid": "aa:bb:cc:dd:ee:ff", "rssi": \-65},  
+            {"ssid": "CoffeeShop", "bssid": "11:22:33:44:55:66", "rssi": \-82}  
+        \]  
+    }  
 \]
 </code>
 
