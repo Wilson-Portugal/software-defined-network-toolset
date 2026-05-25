@@ -1,5 +1,6 @@
 import bluetooth
 import time
+import struct
 from micropython import const
 
 # BLE Event constants
@@ -7,74 +8,80 @@ _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
 _IRQ_GATTS_WRITE = const(3)
 
-# Define our Unique IDs (UUIDs) for the Service and Characteristic
-# You can generate random ones, but we'll use these fixed ones for our test
-SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-CHAR_UUID    = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+# Flags for building raw advertising data bytes
+_ADV_TYPE_FLAGS = const(0x01)
+_ADV_TYPE_NAME = const(0x09)
+_ADV_TYPE_UUID128_COMPLETE = const(0x07)
+
+# Exact matching 128-bit IDs for the web browser handshake
+SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F333-E0A9-E50E24DCCA9E")
+CHAR_UUID    = bluetooth.UUID("6E400002-B5A3-F333-E0A9-E50E24DCCA9E")
 
 class ESP32_BLE_Echo:
-    def __init__(self, name="ESP32-Echo-Node"):
+    def __init__(self, name="ESP32-Echo"):
+        self.name = name
         self.ble = bluetooth.BLE()
         self.ble.active(True)
         self.ble.irq(self._irq)
         
         # Register our Service and Characteristic
-        # 'flags': bluetooth.FLAG_WRITE | bluetooth.FLAG_NOTIFY allows two-way traffic
         char = (CHAR_UUID, bluetooth.FLAG_WRITE | bluetooth.FLAG_NOTIFY,)
         service = (SERVICE_UUID, (char,),)
-        
-        # Returns handles used to read/write memory values
         ((self.char_handle,),) = self.ble.gatts_register_services((service,))
         
         self.connections = set()
-        self.name = name
+        print("BLE initialized successfully.")
         self.advertise()
 
+    def advertise(self):
+        # 1. PRIMARY ADV DATA: Must contain Flags and Service UUID so the filter hits
+        adv_payload = bytearray()
+        adv_payload += struct.pack("BB", 2, _ADV_TYPE_FLAGS) + b"\x06"
+        
+        uuid_bytes = bytes(SERVICE_UUID)
+        adv_payload += struct.pack("BB", len(uuid_bytes) + 1, _ADV_TYPE_UUID128_COMPLETE) + uuid_bytes
+        
+        # 2. SCAN RESPONSE DATA: Move the device name here to prevent -18 memory overflow
+        resp_payload = bytearray()
+        resp_payload += struct.pack("BB", len(self.name) + 1, _ADV_TYPE_NAME) + self.name.encode("utf-8")
+        
+        # Fire up the radio broadcasting with both buffers assigned (Interval: 100ms)
+        self.ble.gap_advertise(100000, adv_data=adv_payload, resp_data=resp_payload)
+        print("Radio transmitting: Payload split successfully. Advertising active!")
+
     def _irq(self, event, data):
-        # Track connections
         if event == _IRQ_CENTRAL_CONNECT:
             conn_handle, _, _ = data
             self.connections.add(conn_handle)
-            print(f"Connected to client! Handle: {conn_handle}")
+            print(f"\n--- Chromebook Connected: Handle [{conn_handle}] ---")
+            
+            # Send an immediate greeting right after the channel opens
+            greeting = "Hello from ESP32! How are you?"
+            self.ble.gatts_notify(conn_handle, self.char_handle, greeting.encode('utf-8'))
             
         elif event == _IRQ_CENTRAL_DISCONNECT:
             conn_handle, _, _ = data
             if conn_handle in self.connections:
                 self.connections.remove(conn_handle)
-            print(f"Disconnected. Handle: {conn_handle}")
-            self.advertise() # Start advertising again so we can reconnect
+            print(f"\n--- Chromebook Disconnected: Handle [{conn_handle}] ---")
+            self.advertise()
             
         elif event == _IRQ_GATTS_WRITE:
             conn_handle, value_handle = data
             if value_handle == self.char_handle:
-                # Read what the client wrote into the characteristic data slot
-                received_bytes = self.ble.gatts_read(self.char_handle)
-                received_text = received_bytes.decode('utf-8').strip()
-                print(f"Received from Phone: {received_text}")
+                received = self.ble.gatts_read(self.char_handle)
+                print(f"Received text data: {received.decode('utf-8')}")
+                #self.ble.gatts_notify(conn_handle, self.char_handle, received)
                 
-                # If they say "hello", we reply "how are you?"
-                if received_text.lower() == "hello":
-                    self.send_reply("how are you?")
+                # 1. Echo the exact string back
+                self.ble.gatts_notify(conn_handle, self.char_handle, received)
+                
+                # 2. If they said hello, fire our custom greeting right after!
+                if decoded_msg.lower() == "hello":
+                    reply = "Hello from ESP32! How are you?"
+                    time.sleep_ms(100) # Tiny pause to let the web terminal process the first packet
+                    self.ble.gatts_notify(conn_handle, self.char_handle, reply.encode('utf-8'))
 
-    def send_reply(self, text):
-        print(f"Replying: {text}")
-        # Write to our local characteristic memory first
-        self.ble.gatts_write(self.char_handle, text.encode('utf-8'))
-        # Notify all connected clients that the data has changed
-        for conn_handle in self.connections:
-            self.ble.gatts_notify(conn_handle, self.char_handle)
-
-    def advertise(self):
-        print("Advertising BLE Echo Service...")
-        # Payload helper to broadcast the device name
-        payload = bytearray(b'\x02\x01\x06') # General discoverable mode
-        payload += bytearray([len(self.name) + 1, 0x09]) + self.name.encode('utf-8')
-        self.ble.gap_advertise(100000, payload)
-
-# Boot up the server
-echo_node = ESP32_BLE_Echo()
-
-# Keep script alive
-while True:
-    time.sleep(1)
-
+# Start up the loop execution hook
+print("Starting up BLE service loop...")
+ble_echo = ESP32_BLE_Echo()
