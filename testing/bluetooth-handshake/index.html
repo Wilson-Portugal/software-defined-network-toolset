@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Echo Proof of Concept</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; line-height: 1.5; }
+        button { padding: 10px 15px; font-size: 16px; margin: 5px 0; width: 100%; cursor: pointer; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; font-size: 16px; }
+        .log { background: #f0f0f0; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 14px; margin-top: 15px; }
+        .status { font-weight: bold; color: #d32f2f; }
+        .connected { color: #388e3c; }
+    </style>
+</head>
+<body>
+
+    <h2>BLE Echo Node Test</h2>
+    <p>Connection Status: <span id="status" class="status">Disconnected</span></p>
+
+    <button id="connectBtn">Connect to ESP32</button>
+    
+    <hr>
+
+    <form id="echoForm" onsubmit="return false;">
+        <label for="msgInput">Send Message to Node:</label>
+        <input type="text" id="msgInput" value="hello" disabled>
+        <button id="sendBtn" disabled>Send to ESP32</button>
+    </form>
+
+    <h3>Data Terminal Log:</h3>
+    <div id="log" class="log"></div>
+
+    <script>
+        // Must match the exact UUID strings used in the MicroPython code
+        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+        let bleDevice = null;
+        let echoCharacteristic = null;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const msgInput = document.getElementById('msgInput');
+        const statusSpan = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        function log(message) {
+            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 1. Connect to the ESP32 Device
+        connectBtn.addEventListener('click', async () => {
+            log("Requesting Bluetooth devices...");
+            try {
+                // Look for devices broadcasting our specific custom service
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                log(`Found device: ${bleDevice.name}. Connecting to GATT Server...`);
+                statusSpan.textContent = "Connecting...";
+                
+                const server = await bleDevice.gatt.connect();
+                log("GATT Server connected. Fetching Service...");
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                log("Service found. Fetching Characteristic...");
+                
+                echoCharacteristic = await service.getCharacteristic(CHAR_UUID);
+                log("Characteristic ready!");
+
+                // Start listening for notifications (the ESP32 replying)
+                await echoCharacteristic.startNotifications();
+                echoCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                
+                // Update UI state
+                statusSpan.textContent = "Connected";
+                statusSpan.className = "status connected";
+                msgInput.disabled = false;
+                sendBtn.disabled = false;
+                connectBtn.disabled = true;
+
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+            } catch (error) {
+                log(`Error: ${error}`);
+                statusSpan.textContent = "Disconnected";
+                statusSpan.className = "status";
+            }
+        });
+
+        // 2. Handle incoming data notifications from the ESP32
+        function handleNotifications(event) {
+            let value = event.target.value;
+            let decoder = new TextDecoder('utf-8');
+            let text = decoder.decode(value);
+            log(`<b>Received from ESP32:</b> ${text}`);
+        }
+
+        // 3. Send text to the ESP32
+        sendBtn.addEventListener('click', async () => {
+            if (!echoCharacteristic) return;
+            let text = msgInput.value;
+            log(`Sending: "${text}"`);
+            
+            let encoder = new TextEncoder('utf-8');
+            let data = encoder.encode(text);
+            
+            try {
+                // Write data to the characteristic slot on the ESP32
+                await echoCharacteristic.writeValue(data);
+                log("Write complete.");
+            } catch (error) {
+                log(`Write Error: ${error}`);
+            }
+        });
+
+        function onDisconnected() {
+            log("Device disconnected.");
+            statusSpan.textContent = "Disconnected";
+            statusSpan.className = "status";
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            connectBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
+
