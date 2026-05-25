@@ -1,0 +1,6 @@
+# Exclude local deployment scripts containing infrastructure credentials
+deploy-web.sh
+deploy-esp.sh
+.htaccess
+.htpasswd
+
