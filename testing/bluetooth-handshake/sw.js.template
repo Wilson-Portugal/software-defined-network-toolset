@@ -37,3 +37,10 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Listen for a message from the main application window asking for the version
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: '%%BUILD_VERSION%%' });
+  }
+});

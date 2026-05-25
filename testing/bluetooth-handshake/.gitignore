@@ -4,6 +4,7 @@ deploy-web.sh
 deploy-esp.sh
 manifest.json
 reset-esp.sh
+sw.js.template
 sw.js
 .htaccess
 .htpasswd
