@@ -3,4 +3,5 @@ deploy-web.sh
 deploy-esp.sh
 .htaccess
 .htpasswd
+.gitignore
 
