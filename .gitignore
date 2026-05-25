@@ -1,1 +1,3 @@
 *.secret
+testing/bluetooth-handshake/password-file.secret
+
