@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLE Echo Proof of Concept</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#317EFB">
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; line-height: 1.5; }
         button { padding: 10px 15px; font-size: 16px; margin: 5px 0; width: 100%; cursor: pointer; }
@@ -15,33 +17,46 @@
 </head>
 <body>
 
-    <h2>BLE Echo Node Test</h2>
+    <h2 style="margin-top: 12px; margin-bottom: 12px;">BLE Echo Node Test</h2>
     <p>Connection Status: <span id="status" class="status">Disconnected</span></p>
 
-    <button id="connectBtn">Connect to ESP32</button>
+    <div id="before" style="display: block;">
+
+        <button id="connectBtn">Connect to ESP32</button>
+        <hr>
+
+    </div>
     
-    <hr>
+    <div id="after" style="display: none;">
 
-    <form id="echoForm" onsubmit="return false;">
-        <label for="msgInput">Send Message to Node:</label>
-        <input type="text" id="msgInput" value="hello" disabled>
-        <button id="sendBtn" disabled>Send to ESP32</button>
-    </form>
+        <form id="echoForm" onsubmit="return false;">
+            <label for="msgInput">Send Message to Node:</label>
+            <input type="text" id="msgInput" value="hello" disabled>
+            <button id="sendBtn" disabled>Send to ESP32</button>
+        </form>
 
-    <h3>Data Terminal Log:</h3>
-    <div id="log" class="log"></div>
+        <h3>Data Terminal Log:</h3>
+        <div id="log" class="log"></div>
 
+        <hr>
+        <h3>System Dashboard Commands</h3>
+        <div style="margin-bottom: 15px;">
+            <button onclick="sendOpcode(0x01)" style="padding: 10px; margin-right: 5px;">Ping Status (0x01)</button>
+            <button onclick="sendOpcode(0x02)" style="padding: 10px; margin-right: 5px;">Query Uptime (0x02)</button>
+            <button onclick="sendOpcode(0x03)" style="padding: 10px;">Identify Node (0x03)</button>
+        </div>
+    </div>
+    
     <script>
         // Must match the exact UUID strings used in the MicroPython code
-        //const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-        //const CHAR_UUID    = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-
         const SERVICE_UUID = "6e400001-b5a3-f333-e0a9-e50e24dcca9e";
         const CHAR_UUID    = "6e400002-b5a3-f333-e0a9-e50e24dcca9e";
 
         let bleDevice = null;
         let echoCharacteristic = null;
 
+        const before = document.getElementById('before');
+        const after = document.getElementById('after');
         const connectBtn = document.getElementById('connectBtn');
         const sendBtn = document.getElementById('sendBtn');
         const msgInput = document.getElementById('msgInput');
@@ -61,11 +76,6 @@
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [{ services: [SERVICE_UUID] }]
                 });
-
-//                bleDevice = await navigator.bluetooth.requestDevice({
-//                    acceptAllDevices: true,
-//                    optionalServices: [SERVICE_UUID]
-//                });
 
                 log(`Found device: ${bleDevice.name}. Connecting to GATT Server...`);
                 statusSpan.textContent = "Connecting...";
@@ -89,6 +99,10 @@
                 msgInput.disabled = false;
                 sendBtn.disabled = false;
                 connectBtn.disabled = true;
+                before.style.display = 'none';
+                after.style.display = 'block';
+
+                // Handle disconnection
 
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
@@ -132,7 +146,41 @@
             msgInput.disabled = true;
             sendBtn.disabled = true;
             connectBtn.disabled = false;
+
+            // Smoothly drop the user back out to the entry gate
+            before.style.display = 'block';
+            after.style.display = 'none';
         }
+
+        async function sendOpcode(hexValue) {
+        if (!echoCharacteristic) {
+            log("Error: Cannot send command. No active BLE connection.");
+            return;
+        }
+
+        try {
+            log(`[TX] Sending Opcode: 0x${hexValue.toString(16).toUpperCase().padStart(2, '0')}`);
+            
+            // Create a 1-byte raw binary buffer container
+            const buffer = new Uint8Array([hexValue]);
+            
+            // Write the binary buffer directly to the ESP32 characteristic
+            await echoCharacteristic.writeValue(buffer);
+            
+            log("Write complete. Waiting for node notification...");
+        } catch (error) {
+            log("Error sending opcode: " + error);
+        }
+    }
+
+    // Register the PWA Service Worker background thread
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker framework active. Scope:', reg.scope))
+                .catch(err => console.log('Service Worker initialization failed:', err));
+        });
+    }
     </script>
 </body>
 </html>

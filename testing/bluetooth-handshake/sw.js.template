@@ -1,0 +1,39 @@
+const CACHE_NAME = 'sdn-toolset-v%%BUILD_VERSION%%';
+const ASSETS = [
+  '/bluetooth-handshake/',
+  '/bluetooth-handshake/index.html',
+  '/bluetooth-handshake/manifest.json',
+  '/bluetooth-handshake/favicon.ico',
+  '/bluetooth-handshake/sgn-radio-512x512.png',
+  '/bluetooth-handshake/sgn-radio.svg'
+];
+
+// Install Event: Prepare the offline local container storage
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
+  );
+});
+
+// Intercept Network Requests
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // If the network network check works, update the cache copy dynamically
+        if (response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Fallback: If network is broken, serve the asset from local storage
+        return caches.match(event.request);
+      })
+  );
+});

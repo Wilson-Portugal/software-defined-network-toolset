@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+    <circle cx="48" cy="48" r="44" stroke="#0056b3" stroke-width="4" fill="gainsboro" />
+    <line x1="10" y1="48" x2="30" y2="48" stroke="#0056b3" stroke-width="2"/>
+    <line x1="66" y1="48" x2="86" y2="48" stroke="#0056b3" stroke-width="2"/>
+    <line x1="48" y1="10" x2="48" y2="30" stroke="#0056b3" stroke-width="2"/>
+    <line x1="48" y1="66" x2="48" y2="86" stroke="#0056b3" stroke-width="2"/>
+    <circle cx="48" cy="48" r="8" fill="#0056b3"/>
+
+    <path d="M15,48 C20,38 25,38 30,48" stroke="#32cd32" stroke-width="3" fill="none"/>
+    <path d="M35,48 C40,28 50,28 55,48" stroke="#32cd32" stroke-width="3" fill="none"/>
+    <path d="M60,48 C65,38 70,38 75,48" stroke="#32cd32" stroke-width="3" fill="none"/>
+    
+    <text x="51" y="66" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12px" font-weight="bold" fill="brown">SGN Radio</text>
+</svg>
