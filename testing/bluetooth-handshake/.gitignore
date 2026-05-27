@@ -1,2 +1,3 @@
-# Exclude local deployment scripts containing infrastructure credentials
+# Exclude infrastructure credentials
 production-credentials.txt
+esp-credentials.txt

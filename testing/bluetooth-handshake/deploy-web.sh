@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Target remote details
-CREDENTIALS=`cat production-credentials.txt | head -n 1`
+CREDENTIALS="cat production-credentials.txt | grep -v '^#' | head -n 1"
 FTP_HOST=`echo $CREDENTIALS | cut -d '|' -f 1`
 FTP_USER=`echo $CREDENTIALS | cut -d '|' -f 2`
 FTP_PASS=`echo $CREDENTIALS | cut -d '|' -f 3`

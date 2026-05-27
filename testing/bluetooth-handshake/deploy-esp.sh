@@ -1,8 +1,9 @@
 #!/bin/bash
 
-ESP_IP="192.168.1.105"
-ESP_PORT="8266"
-ESP_PASS="coelho123"
+CREDENTIALS="cat production-credentials.txt | grep -v '^#' | head -n 1"
+ESP_IP=`echo $CREDENTIALS | cut -d '|' -f 1`
+ESP_PORT=`echo $CREDENTIALS | cut -d '|' -f 2`
+ESP_PASS=`echo $CREDENTIALS | cut -d '|' -f 3`
 WEBREPL_CLI="$HOME/webrepl/webrepl_cli.py"
 LOCAL_DIR="/mnt/chromeos/MyFiles/software-defined-network-toolset/testing/bluetooth-handshake"
 LOCAL_FILE="$LOCAL_DIR/python/main.py"

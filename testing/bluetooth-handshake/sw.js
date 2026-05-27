@@ -1,4 +1,4 @@
-const BUILD_VERSION = '1.0.13';
+const BUILD_VERSION = '1.0.14';
 const CACHE_NAME = 'sdn-toolset-v' + BUILD_VERSION;
 const ASSETS = [
   '/bluetooth-handshake/',

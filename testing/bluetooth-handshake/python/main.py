@@ -2,7 +2,6 @@ import bluetooth
 import time
 import struct
 from micropython import const
-
 import sdn_protocol
 
 # BLE Event constants
@@ -43,6 +42,30 @@ class ESP32_BLE_System:
         
         self.ble.gap_advertise(100000, adv_data=adv_payload, resp_data=resp_payload)
         print("Advertising active!")
+
+    def ble_irq_handler(event, data):
+        # This event code triggers when a central device (your PWA) writes data to us
+        if event == 3:  # 3 corresponds to the low-level _IRQ_WRITE flag
+            conn_handle, value_handle = data
+            
+            # Read the raw incoming bytes from the hardware buffer
+            raw_rx_data = ble.gatts_read(value_handle)
+            
+            if len(raw_rx_data) > 0:
+                # 1. Extract the very first byte as our integer opcode (e.g., 0x01, 0x02)
+                opcode = raw_rx_data[0]
+                
+                print("Received Dashboard Command Opcode: 0x{:02X}".format(opcode))
+                
+                # 2. Delegate the heavy lifting to our specialized worker module.
+                # response_view will capture the direct zero-allocation memory pointer window.
+                response_view = sdn_protocol.process_command(opcode)
+                
+                # 3. Write the response back to the BLE hardware characteristic
+                ble.gatts_write(value_handle, response_view)
+                
+                # 4. Notify the connected PWA that data is ready to be read
+                ble.gatts_notify(conn_handle, value_handle)
 
     def _irq(self, event, data):
         if event == _IRQ_CENTRAL_CONNECT:
