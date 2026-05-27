@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Echo Proof of Concept</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#317EFB">
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; line-height: 1.5; }
+        button { padding: 10px 15px; font-size: 16px; margin: 5px 0; width: 100%; cursor: pointer; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; font-size: 16px; }
+        .log { background: #f0f0f0; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 14px; margin-top: 15px; }
+        .status { font-weight: bold; color: #d32f2f; }
+        .connected { color: #388e3c; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-top: 12px; margin-bottom: 12px;">BLE Echo Node Test</h2>
+    <p>Connection Status: <span id="status" class="status">Disconnected</span></p>
+
+    <div id="before" style="display: block;">
+
+        <button id="connectBtn">Connect to ESP32</button>
+        <hr>
+
+    </div>
+    
+    <div id="after" style="display: none;">
+
+        <form id="echoForm" onsubmit="return false;">
+            <label for="msgInput">Send Message to Node:</label>
+            <input type="text" id="msgInput" value="hello" disabled>
+            <button id="sendBtn" disabled>Send to ESP32</button>
+        </form>
+
+        <h3>Data Terminal Log:</h3>
+        <div id="log" class="log"></div>
+
+        <hr>
+        <h3>System Dashboard Commands</h3>
+        <div style="margin-bottom: 15px;">
+            <button onclick="sendOpcode(0x01)" style="padding: 10px; margin-right: 5px;">Ping Status (0x01)</button>
+            <button onclick="sendOpcode(0x02)" style="padding: 10px; margin-right: 5px;">Query Uptime (0x02)</button>
+            <button onclick="sendOpcode(0x03)" style="padding: 10px;">Identify Node (0x03)</button>
+        </div>
+    </div>
+
+    <input type="hidden" id="__build_version__" value="%%BUILD_VERSION%%" readonly>
+
+    <p style="text-align: center; font-size: 11px; color: #888; margin-top: 30px;">
+        <span id="appVersion"></span>
+    </p>
+
+##JAVASCRIPT##
+
+</body>
+</html>

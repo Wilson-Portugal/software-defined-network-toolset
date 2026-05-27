@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE Echo Proof of Concept</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#317EFB">
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; line-height: 1.5; }
+        button { padding: 10px 15px; font-size: 16px; margin: 5px 0; width: 100%; cursor: pointer; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; font-size: 16px; }
+        .log { background: #f0f0f0; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; font-size: 14px; margin-top: 15px; }
+        .status { font-weight: bold; color: #d32f2f; }
+        .connected { color: #388e3c; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-top: 12px; margin-bottom: 12px;">BLE Echo Node Test</h2>
+    <p>Connection Status: <span id="status" class="status">Disconnected</span></p>
+
+    <div id="before" style="display: block;">
+
+        <button id="connectBtn">Connect to ESP32</button>
+        <hr>
+
+    </div>
+    
+    <div id="after" style="display: none;">
+
+        <form id="echoForm" onsubmit="return false;">
+            <label for="msgInput">Send Message to Node:</label>
+            <input type="text" id="msgInput" value="hello" disabled>
+            <button id="sendBtn" disabled>Send to ESP32</button>
+        </form>
+
+        <h3>Data Terminal Log:</h3>
+        <div id="log" class="log"></div>
+
+        <hr>
+        <h3>System Dashboard Commands</h3>
+        <div style="margin-bottom: 15px;">
+            <button onclick="sendOpcode(0x01)" style="padding: 10px; margin-right: 5px;">Ping Status (0x01)</button>
+            <button onclick="sendOpcode(0x02)" style="padding: 10px; margin-right: 5px;">Query Uptime (0x02)</button>
+            <button onclick="sendOpcode(0x03)" style="padding: 10px;">Identify Node (0x03)</button>
+        </div>
+    </div>
+
+    <p style="text-align: center; font-size: 11px; color: #888; margin-top: 30px;">
+        <span id="appVersion"></span>
+    </p>
+    
+    <script>
+        // Must match the exact UUID strings used in the MicroPython code
+        const SERVICE_UUID = "6e400001-b5a3-f333-e0a9-e50e24dcca9e";
+        const CHAR_UUID    = "6e400002-b5a3-f333-e0a9-e50e24dcca9e";
+
+        let bleDevice = null;
+        let echoCharacteristic = null;
+
+        const before = document.getElementById('before');
+        const after = document.getElementById('after');
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const msgInput = document.getElementById('msgInput');
+        const statusSpan = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        function log(message) {
+            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 1. Connect to the ESP32 Device
+        connectBtn.addEventListener('click', async () => {
+            log("Requesting Bluetooth devices...");
+            try {
+                // Look for devices broadcasting our specific custom service
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                log(`Found device: ${bleDevice.name}. Connecting to GATT Server...`);
+                statusSpan.textContent = "Connecting...";
+                
+                const server = await bleDevice.gatt.connect();
+                log("GATT Server connected. Fetching Service...");
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                log("Service found. Fetching Characteristic...");
+                
+                echoCharacteristic = await service.getCharacteristic(CHAR_UUID);
+                log("Characteristic ready!");
+
+                // Start listening for notifications (the ESP32 replying)
+                await echoCharacteristic.startNotifications();
+                echoCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+                
+                // Update UI state
+                statusSpan.textContent = "Connected";
+                statusSpan.className = "status connected";
+                msgInput.disabled = false;
+                sendBtn.disabled = false;
+                connectBtn.disabled = true;
+                before.style.display = 'none';
+                after.style.display = 'block';
+
+                // Handle disconnection
+
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+            } catch (error) {
+                log(`Error: ${error}`);
+                statusSpan.textContent = "Disconnected";
+                statusSpan.className = "status";
+            }
+        });
+
+        // 2. Handle incoming data notifications from the ESP32
+        function handleNotifications(event) {
+            let value = event.target.value;
+            let decoder = new TextDecoder('utf-8');
+            let text = decoder.decode(value);
+            log(`<b>Received from ESP32:</b> ${text}`);
+        }
+
+        // 3. Send text to the ESP32
+        sendBtn.addEventListener('click', async () => {
+            if (!echoCharacteristic) return;
+            let text = msgInput.value;
+            log(`Sending: "${text}"`);
+            
+            let encoder = new TextEncoder('utf-8');
+            let data = encoder.encode(text);
+            
+            try {
+                // Write data to the characteristic slot on the ESP32
+                await echoCharacteristic.writeValue(data);
+                log("Write complete.");
+            } catch (error) {
+                log(`Write Error: ${error}`);
+            }
+        });
+
+        function onDisconnected() {
+            log("Device disconnected.");
+            statusSpan.textContent = "Disconnected";
+            statusSpan.className = "status";
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            connectBtn.disabled = false;
+
+            // Smoothly drop the user back out to the entry gate
+            before.style.display = 'block';
+            after.style.display = 'none';
+        }
+
+        async function sendOpcode(hexValue) {
+        if (!echoCharacteristic) {
+            log("Error: Cannot send command. No active BLE connection.");
+            return;
+        }
+
+        try {
+            log(`[TX] Sending Opcode: 0x${hexValue.toString(16).toUpperCase().padStart(2, '0')}`);
+            
+            // Create a 1-byte raw binary buffer container
+            const buffer = new Uint8Array([hexValue]);
+            
+            // Write the binary buffer directly to the ESP32 characteristic
+            await echoCharacteristic.writeValue(buffer);
+            
+            log("Write complete. Waiting for node notification...");
+        } catch (error) {
+            log("Error sending opcode: " + error);
+        }
+    }
+
+
+
+    // Register the PWA Service Worker background thread and fetch its active version
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => {
+                    console.log('Service Worker framework active.');
+                    
+                    const messageChannel = new MessageChannel();
+                    messageChannel.port1.onmessage = (event) => {
+                        if (event.data && event.data.version) {
+                            // The worker replied with a valid token! Show the badge.
+                            document.getElementById('appVersion').textContent = 'Application Build: v' + event.data.version;
+                        }
+                    };
+
+                    if (navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+                    } else {
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+                        });
+                    }
+                })
+                .catch(err => {
+                    // Silently log the absence of the file to DevTools for developers,
+                    // but keep the user interface perfectly clean and hidden.
+                    console.log('PWA Service Worker not found or running in local development mode.');
+                });
+        });
+    }
+
+    // if ('serviceWorker' in navigator) {
+    //     window.addEventListener('load', () => {
+    //         navigator.serviceWorker.register('sw.js')
+    //             .then(reg => {
+    //                 console.log('Service Worker framework active. Scope:', reg.scope);
+                    
+    //                 // Set up a channel to safely request the version string from the worker
+    //                 const messageChannel = new MessageChannel();
+    //                 messageChannel.port1.onmessage = (event) => {
+    //                     if (event.data && event.data.version) {
+    //                         document.getElementById('appVersion').textContent = 'v' + event.data.version;
+    //                     }
+    //                 };
+
+    //                 // Wait until the service worker is controlling the page, then pull the token
+    //                 if (navigator.serviceWorker.controller) {
+    //                     navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+    //                 } else {
+    //                     // On first load or if state is ambiguous, watch for controller readiness
+    //                     navigator.serviceWorker.addEventListener('controllerchange', () => {
+    //                         navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+    //                     });
+    //                 }
+    //             })
+    //             .catch(err => {
+    //                 console.log('Service Worker initialization failed:', err);
+    //                 document.getElementById('appVersion').textContent = "Offline/Local Mode";
+    //             });
+    //     });
+    // }
+    // // Register the PWA Service Worker background thread
+    // if ('serviceWorker' in navigator) {
+    //     window.addEventListener('load', () => {
+    //         navigator.serviceWorker.register('sw.js')
+    //             .then(reg => console.log('Service Worker framework active. Scope:', reg.scope))
+    //             .catch(err => console.log('Service Worker initialization failed:', err));
+    //     });
+    // }
+    </script>
+</body>
+</html>

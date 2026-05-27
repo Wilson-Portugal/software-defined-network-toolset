@@ -1,0 +1,13 @@
+#!/bin/bash
+
+ESP_IP="192.168.1.105"
+ESP_PORT="8266"
+ESP_PASS="coelho123"
+WEBREPL_CLI="$HOME/webrepl/webrepl_cli.py"
+LOCAL_DIR="/mnt/chromeos/MyFiles/software-defined-network-toolset/testing/bluetooth-handshake"
+LOCAL_FILE="$LOCAL_DIR/python/main.py"
+
+echo "Deploying main.py to ESP32 over Wi-Fi ($ESP_IP)..."
+python3 "$WEBREPL_CLI" -p "$ESP_PASS" "$LOCAL_FILE" "$ESP_IP:$ESP_PORT:/main.py"
+
+echo "Deployment asset transferred. Run ./reset-esp.sh to execute."

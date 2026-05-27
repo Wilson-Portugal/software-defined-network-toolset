@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "Restricted Software Defined Network Toolset"
+AuthUserFile .htpasswd
+Require valid-user
