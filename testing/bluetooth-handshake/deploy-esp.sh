@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CREDENTIALS="cat production-credentials.txt | grep -v '^#' | head -n 1"
+CREDENTIALS=`cat esp-credentials.txt | grep -v '^#' | head -n 1`
 ESP_IP=`echo $CREDENTIALS | cut -d '|' -f 1`
 ESP_PORT=`echo $CREDENTIALS | cut -d '|' -f 2`
 ESP_PASS=`echo $CREDENTIALS | cut -d '|' -f 3`
